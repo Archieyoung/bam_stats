@@ -1,2 +1,4 @@
+bam_stats
+htslib
 test
 *.o
