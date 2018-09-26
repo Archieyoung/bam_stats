@@ -7,6 +7,8 @@ import subprocess
 import matplotlib
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 
@@ -50,9 +52,13 @@ def main():
     args = get_args()
     cpp_bam_stats = os.path.join(os.path.dirname(os.path.abspath(__file__)),
             "bam_stats")
-    subprocess.run([cpp_bam_stats, "-b", args.bam, "-p", args.prefix])
     fragment_stats_table = args.prefix+".mapping.fragment.stats.txt"
     identity_plot(fragment_stats_table, args.prefix)
+    if (os.path.exists(fragment_stats_table)) :
+        identity_plot(fragment_stats_table, args.prefix)
+    else:
+        subprocess.run([cpp_bam_stats, "-b", args.bam, "-p", args.prefix])
+        identity_plot(fragment_stats_table, args.prefix)
 
 if __name__ == "__main__":
     main()
