@@ -53,8 +53,7 @@ def main():
     cpp_bam_stats = os.path.join(os.path.dirname(os.path.abspath(__file__)),
             "bam_stats")
     fragment_stats_table = args.prefix+".mapping.fragment.stats.txt"
-    identity_plot(fragment_stats_table, args.prefix)
-    if (os.path.exists(fragment_stats_table)) :
+    if os.path.exists(fragment_stats_table):
         identity_plot(fragment_stats_table, args.prefix)
     else:
         subprocess.run([cpp_bam_stats, "-b", args.bam, "-p", args.prefix])
