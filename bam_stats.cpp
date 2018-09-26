@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <vector>
+#include <map>
 #include <getopt.h>
 
 
@@ -52,12 +53,12 @@ inline float mean_identity(std::vector<float> &identity_vec) {
     return sum/identity_vec.size();
 }
 
-uint64_t total_reads(std::vector<std::string> &qnames) {
-    std::sort(qnames.begin(), qnames.end()); // sort inplace
-    auto end_uniq = std::unique(qnames.begin(), qnames.end());
-    qnames.erase(end_uniq, qnames.end());
-    return qnames.size();
-}
+// uint64_t total_reads(std::vector<std::string> &qnames) {
+//     std::sort(qnames.begin(), qnames.end()); // sort inplace
+//     auto end_uniq = std::unique(qnames.begin(), qnames.end());
+//     qnames.erase(end_uniq, qnames.end());
+//     return qnames.size();
+// }
 
 int get_fragment_qual(bam1_t *b, const uint32_t &l_query,
     const uint32_t &query_start, const uint32_t &query_end) {
@@ -106,10 +107,16 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
 "MAPPING_QAULITY\tFRAGMENT_IDENTITY" << std::endl;
     }
     
-    // qnames, mutiple-mapping
-    std::vector<std::string> qnames;
-    // ummapped reads number
-    int64_t unmapped_num = 0;
+    // key qnames, value query length
+    std::map<std::string, uint32_t> qlen;
+    // unmapped reads number
+    uint64_t unmapped_num = 0;
+
+    // total bases
+    uint64_t total_bases = 0;
+    // mapped bases
+    uint64_t mapped_bases = 0;
+
     // identity vector
     std::vector<float> identity_vec;
     int ret;
@@ -117,7 +124,12 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
     while ((ret = sam_read1(fp, h, b) >= 0)) {
         // query name
         const char *query_name = bam_get_qname(b);
-        qnames.push_back(query_name);
+        const uint32_t l_query = b->core.l_qseq;
+
+        if (qlen.find(query_name) == qlen.end()) {
+            qlen[query_name] = l_query;
+            total_bases += l_query;
+        }
 
         const uint16_t bam_flag = b->core.flag;
         // skip unmapped record
@@ -128,7 +140,7 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
         }
 
         const uint32_t _cigar_array_len = b->core.n_cigar;
-        const uint32_t l_query = b->core.l_qseq;
+        
         const uint32_t pos = b->core.pos;
         const char *ref_name = h->target_name[b->core.tid];
         const uint16_t mapping_qual = b->core.qual;
@@ -138,6 +150,9 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
         from_cigar _cp(bam_get_cigar(b), _cigar_array_len);        
         const uint32_t query_start = _cp.get_query_start(bam_flag, l_query);
         const uint32_t query_end = _cp.get_query_end(bam_flag, l_query);
+        // mapped bases is the span of the segment, cliping not included
+        uint32_t qspan = abs(query_end - query_start);
+        mapped_bases += qspan;
 
         // "NM" tag
         uint8_t *NM_tag;
@@ -154,7 +169,7 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
         NM_tag_value = bam_aux2i(NM_tag);
 
         // mapping identity
-        float percent_identity = 1 - float(NM_tag_value) / float(abs(query_end - query_start));
+        float percent_identity = 1 - float(NM_tag_value) / float(qspan);
         identity_vec.push_back(percent_identity);
 
         int fragment_mean_qual = 0;
@@ -205,14 +220,18 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
 
     out_hd1.open(prefix+".mapping.summary.txt");
 
-    out_hd1 << "Total_Reads_Num\tMapped_Reads_Num\t"
-"Mapping_rate\tMean_Percent_of_Identity" << std::endl;
+    out_hd1 << "Total_Reads\tMapped_Reads\t"
+"Mapped_Reads_Rate\tTotal_Bases\tMapped_Bases\tMapped_Bases_Rate\t"
+"Mean_Percent_of_Identity" << std::endl;
 
-    uint64_t total_reads_num = total_reads(qnames);
+    uint64_t total_reads_num = qlen.size();
     uint64_t mapped_reads_num = total_reads_num - unmapped_num;
     out_hd1 << total_reads_num << "\t"
             << mapped_reads_num << "\t"
             << float(mapped_reads_num)/total_reads_num << "\t"
+            << total_bases << "\t"
+            << mapped_bases << "\t"
+            << float(mapped_bases)/total_bases << "\t"
             << mean_identity(identity_vec) << "\t"
             << std::endl;
    
