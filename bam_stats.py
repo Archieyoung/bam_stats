@@ -40,7 +40,7 @@ def identity_plot(fragment_stats, prefix):
     n, bins, patches = ax.hist(pid, num_bins, density=1, edgecolor="black")
 
     ax.set_xlabel('Percent of identity')
-    ax.set_ylabel('Probability density')
+    ax.set_ylabel('Density')
     # ax.set_title(r'Histogram of IQ: $\mu=100$, $\sigma=15$')
 
     # Tweak spacing to prevent clipping of ylabel
@@ -53,11 +53,14 @@ def main():
     cpp_bam_stats = os.path.join(os.path.dirname(os.path.abspath(__file__)),
             "bam_stats")
     fragment_stats_table = args.prefix+".mapping.fragment.stats.txt"
-    if os.path.exists(fragment_stats_table):
-        identity_plot(fragment_stats_table, args.prefix)
-    else:
-        subprocess.run([cpp_bam_stats, "-b", args.bam, "-p", args.prefix])
-        identity_plot(fragment_stats_table, args.prefix)
+    # if os.path.exists(fragment_stats_table):
+    #     identity_plot(fragment_stats_table, args.prefix)
+    # else:
+    #     subprocess.run([cpp_bam_stats, "-b", args.bam, "-p", args.prefix])
+    #     identity_plot(fragment_stats_table, args.prefix)
+
+    subprocess.run([cpp_bam_stats, "-b", args.bam, "-p", args.prefix])
+    identity_plot(fragment_stats_table, args.prefix)   
 
 if __name__ == "__main__":
     main()
