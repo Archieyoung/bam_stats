@@ -151,7 +151,7 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
         const uint32_t query_start = _cp.get_query_start(bam_flag, l_query);
         const uint32_t query_end = _cp.get_query_end(bam_flag, l_query);
         // mapped bases is the span of the segment, cliping not included
-        uint32_t qspan = abs(query_end - query_start);
+        uint32_t qspan = abs(query_end - query_start) + 1;
         mapped_bases += qspan;
 
         // "NM" tag
