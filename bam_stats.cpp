@@ -169,7 +169,7 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
         NM_tag_value = bam_aux2i(NM_tag);
 
         // mapping identity
-        float percent_identity = 1 - float(NM_tag_value) / float(qspan);
+        float percent_identity = 100*(1 - float(NM_tag_value) / float(qspan));
         identity_vec.push_back(percent_identity);
 
         int fragment_mean_qual = 0;
