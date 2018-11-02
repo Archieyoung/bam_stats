@@ -60,7 +60,7 @@ inline float mean_identity(std::vector<float> &identity_vec) {
 //     return qnames.size();
 // }
 
-int get_fragment_qual(bam1_t *b, const uint32_t &l_query,
+int get_fragment_qual(bam1_t *b, int32_t &l_query,
     const uint32_t &query_start, const uint32_t &query_end) {
     /*get mapping fragment quality string, and then calculate mean sequencing
     quality of it*/
@@ -83,6 +83,16 @@ int get_fragment_qual(bam1_t *b, const uint32_t &l_query,
     int fragment_mean_qual = mean_phred(fragment_qual);
     return fragment_mean_qual;
     
+}
+
+bool is_hard_clip(const uint32_t *cigar_array_prt, const uint32_t cigar_array_len) {
+    const int c_op_s = bam_cigar_op(*cigar_array_prt);
+    const int c_op_e = bam_cigar_op(*(cigar_array_prt + cigar_array_len - 1));
+    if (c_op_s == BAM_CHARD_CLIP || c_op_e == BAM_CHARD_CLIP) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
@@ -122,16 +132,32 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
     int ret;
     // read record one by one
     while ((ret = sam_read1(fp, h, b) >= 0)) {
+        const uint16_t bam_flag = b->core.flag;
+        const uint32_t _cigar_array_len = b->core.n_cigar;
+        
+        const uint32_t pos = b->core.pos;
+        const char *ref_name = h->target_name[b->core.tid];
+        const uint16_t mapping_qual = b->core.qual;
+
         // query name
         const char *query_name = bam_get_qname(b);
-        const uint32_t l_query = b->core.l_qseq;
+        int32_t l_query = b->core.l_qseq;
+        
+        // std::cout << _cigar_array_len << std::endl;
+        // from_cigar constructor
+        from_cigar _cp(bam_get_cigar(b), _cigar_array_len);        
+
+        /*query len from CIGAR*/
+        if (l_query <= 0 || is_hard_clip(bam_get_cigar(b), _cigar_array_len)) {
+            l_query = _cp.get_query_length_cigar();
+        }
 
         if (qlen.find(query_name) == qlen.end()) {
             qlen[query_name] = l_query;
             total_bases += l_query;
         }
-
-        const uint16_t bam_flag = b->core.flag;
+        // std::cerr << query_name << ": " << l_query << std::endl;
+        
         // skip unmapped record
         if (is_unmapped(bam_flag)) {
             // std::cout << "Unmapped." << std::endl;
@@ -139,20 +165,13 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
             continue;
         }
 
-        const uint32_t _cigar_array_len = b->core.n_cigar;
-        
-        const uint32_t pos = b->core.pos;
-        const char *ref_name = h->target_name[b->core.tid];
-        const uint16_t mapping_qual = b->core.qual;
-
-        // std::cout << _cigar_array_len << std::endl;
-        // from_cigar constructor
-        from_cigar _cp(bam_get_cigar(b), _cigar_array_len);        
         const uint32_t query_start = _cp.get_query_start(bam_flag, l_query);
         const uint32_t query_end = _cp.get_query_end(bam_flag, l_query);
         // mapped bases is the span of the segment, cliping not included
         uint32_t qspan = abs(query_end - query_start) + 1;
-        mapped_bases += qspan;
+        if (!(bam_flag&BAM_FSECONDARY)) {
+            mapped_bases += qspan;
+        }
 
         // "NM" tag
         uint8_t *NM_tag;
@@ -170,6 +189,10 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
 
         // mapping identity
         float percent_identity = 100*(1 - float(NM_tag_value) / float(qspan));
+        if (percent_identity < 0 || percent_identity > 100) {
+            std::cerr << "Error, percent of identity out of range for query "
+                << query_name << std::endl;
+        }
         identity_vec.push_back(percent_identity);
 
         int fragment_mean_qual = 0;

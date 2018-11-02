@@ -3,11 +3,31 @@
 #include "from_cigar.h"
 
 
+int32_t from_cigar::get_query_length_cigar() {
+    // local copy of cigar_array pointer
+    const uint32_t *_ca_prt = ca_prt;
+    
+    int32_t query_l = 0;
+    // loop through cigar array
+    for (uint32_t i = 0; i < ca_len; ++i) {
+        // bit 2 set if the cigar operation consumes the reference
+        const int c_op = bam_cigar_op(*(_ca_prt+i));
+        const int c_type = bam_cigar_type(c_op);
+        // std::cout << "test: " << bam_cigar_opchr(*(_ca_prt+i)) << std::endl;
+        if (c_type&1 || c_op == BAM_CHARD_CLIP) {
+            const int c_oplen = bam_cigar_oplen(*(_ca_prt+i));
+            query_l += c_oplen;
+        }
+    }
+    // std::cerr << query_l << std::endl;
+    return query_l;
+}
+
+
 uint32_t from_cigar::get_query_start(const uint16_t &_flag,
-    const uint32_t &_l_query) {
+    int32_t &_l_query) {
     const int c_op = bam_cigar_op(*ca_prt);
     const int c_oplen = bam_cigar_oplen(*ca_prt);
-    
     // if the read is reversed
     if (_flag&BAM_FREVERSE) {
         // is the start seq of the query clipped?
@@ -27,10 +47,9 @@ uint32_t from_cigar::get_query_start(const uint16_t &_flag,
 }
 
 uint32_t from_cigar::get_query_end(const uint16_t &_flag,
-    const uint32_t &_l_query) {
+    int32_t &_l_query) {
     const int c_op = bam_cigar_op(*(ca_prt+ca_len-1));
     const int c_oplen = bam_cigar_oplen(*(ca_prt+ca_len-1));
-    
     // if the read is reversed
     if (_flag&BAM_FREVERSE) {
         // is the end seq of the query clipped?
