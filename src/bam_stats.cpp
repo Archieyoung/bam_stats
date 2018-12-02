@@ -271,7 +271,8 @@ void usage() {
     std::cerr << "-h, --help                print this message and exit\n"
         << "-b, --bam, FILE           input bam file [default: None]\n"
         << "-p, --prefix, FILE        output file prefix [default: None]\n"
-        << "-q, --get_qual            get fragment sequencing quality [default FALSE]"
+        << "-q, --get_qual            get fragment sequencing quality [default FALSE]\n"
+        << "-V, --version             print version\n"
         << std::endl;
 }
 
@@ -282,16 +283,19 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    std::string __version__ = "v0.0.1";
+
     // long_option array
     static const struct option long_options[] = {
         {"bam", required_argument, 0, 'b'},
         {"out", required_argument, 0, 'o'},
         {"get_qual", no_argument, 0, 'q'},
-        {"help", no_argument, 0, 'h'}
+        {"help", no_argument, 0, 'h'},
+        {"version", no_argument, 0, 'V'}
     };
 
     int c = 100, long_idx;
-    const char *opt_str = "b:p:hq";
+    const char *opt_str = "b:p:hqV";
 
     const char *_input_bam;
     const char *_prefix;
@@ -310,6 +314,9 @@ int main(int argc, char *argv[])
             return 0;
         } else if (c == 'q') {
             _get_qual = 1;
+        } else if (c == 'V') {
+            std::cout << "bam_stats version: " << __version__ << std::endl;
+            return 0;
         }
         else {
             std::cerr << "Invalid Arguments.";
