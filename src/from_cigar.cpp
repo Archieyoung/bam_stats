@@ -94,6 +94,18 @@ uint32_t from_cigar::get_ref_end(const uint32_t &_pos) {
     return _pos + get_ref_span() - 1; // 0-based rightmost coordinate
 }
 
+uint32_t from_cigar::get_aligned_len() {
+    uint32_t aligned_len = 0;
+    for (uint32_t i = 0; i < ca_len; ++i) {
+        const int c_op = bam_cigar_op(*(ca_prt+i));
+        const int c_oplen = bam_cigar_oplen(*(ca_prt+i));
+        if (c_op == BAM_CMATCH || c_op == BAM_CDEL || c_op == BAM_CINS) {
+            aligned_len += c_oplen;
+        }
+    }
+    return aligned_len;
+}
+
 /* test
 int main(int argc, char const *argv[])
 {

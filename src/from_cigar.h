@@ -42,6 +42,11 @@ class from_cigar {
     */
     uint32_t get_ref_end(const uint32_t &_pos); // start from "0"
 
+    /*
+    return: aligned length
+     */
+    uint32_t get_aligned_len();
+
     private:
     const uint32_t *ca_prt;
     const uint32_t ca_len;

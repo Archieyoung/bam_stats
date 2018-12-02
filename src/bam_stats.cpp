@@ -173,6 +173,7 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
             mapped_bases += qspan;
         }
 
+    
         // "NM" tag
         uint8_t *NM_tag;
         // check tag existence
@@ -187,11 +188,14 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
         // check value get
         NM_tag_value = bam_aux2i(NM_tag);
 
+        uint32_t aligned_len = _cp.get_aligned_len();
+
         // mapping identity
-        float percent_identity = 100*(1 - float(NM_tag_value) / float(qspan));
+        float percent_identity = 100*(1 - float(NM_tag_value) / float(aligned_len));
         if (percent_identity < 0 || percent_identity > 100) {
             std::cerr << "Error, percent of identity out of range for query "
                 << query_name << std::endl;
+            continue;
         }
         identity_vec.push_back(percent_identity);
 
