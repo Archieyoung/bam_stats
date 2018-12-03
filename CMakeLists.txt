@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.2)
 project(bam_stats LANGUAGES CXX VERSION 0.0.1)
 
 # Standard GNU install dirs
-include(GNUInstallDirs)
+# include(GNUInstallDirs)
 
 # PROJECT_BINARY_DIR default is the build dir
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
@@ -28,7 +28,8 @@ target_include_directories(bam_stats_objects PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/vendor/htslib>
     $<INSTALL_INTERFACE:include>)
 
-install(TARGETS bam_stats_objects DESTINATION ${CMAKE_INSTALL_LIBDIR})
+# not install
+# install(TARGETS bam_stats_objects DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 # htslib library and include files in vendor
 set(HTS_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/htslib/htslib)
