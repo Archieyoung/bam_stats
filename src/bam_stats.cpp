@@ -95,7 +95,37 @@ bool is_hard_clip(const uint32_t *cigar_array_prt, const uint32_t cigar_array_le
     }
 }
 
-int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
+/*
+compute gap compressed identity. https://lh3.github.io/2018/11/25/on-the-definition-of-sequence-identity
+perl -ane 'if(/NM:i:(\d+)/){$n=$1;$l=0;$l+=$1 while/(\d+)[MID]/g;print(($l-$n)/$l,"\n")}'
+identity = (NM - D - I + O)/(M + O), remove gap extend but keep gap open, when calculate identity.
+NM is NM tag in sam file, which represent not-match bases. O is number of gap open.
+*/
+float gap_compressed_identity(const int32_t &nm, const uint32_t *ca_prt,
+    const uint32_t &ca_len)
+{
+    uint32_t l_m = 0;
+    uint32_t l_d = 0;
+    uint32_t l_i = 0;
+    uint32_t l_o = 0;
+    for (uint32_t i = 0; i < ca_len; ++i) {
+        const int c_op = bam_cigar_op(*(ca_prt+i));
+        const int c_oplen = bam_cigar_oplen(*(ca_prt+i));
+        if (c_op == BAM_CMATCH) {
+            l_m += c_oplen;
+        } else if (c_op == BAM_CDEL) {
+            l_d += c_oplen;
+            ++l_o;
+        } else if (c_op == BAM_CINS) {
+            l_i += c_oplen;
+            ++l_o;
+        }
+    }
+    float _identity = 1 - float(nm - l_d - l_i + l_o)/(l_m + l_o);
+    return _identity;
+}
+
+int bam_stats(const char *input_bam, const std::string prefix, int identity_type, bool get_qual)
 {
     // open bam
     samFile *fp = sam_open(input_bam, "r");
@@ -133,6 +163,7 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
     // read record one by one
     while ((ret = sam_read1(fp, h, b) >= 0)) {
         const uint16_t bam_flag = b->core.flag;
+        const uint32_t *_cigar_array_prt = bam_get_cigar(b);
         const uint32_t _cigar_array_len = b->core.n_cigar;
         
         const uint32_t pos = b->core.pos;
@@ -145,10 +176,10 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
         
         // std::cout << _cigar_array_len << std::endl;
         // from_cigar constructor
-        from_cigar _cp(bam_get_cigar(b), _cigar_array_len);        
+        from_cigar _cp(_cigar_array_prt, _cigar_array_len);        
 
         /*query len from CIGAR*/
-        if (l_query <= 0 || is_hard_clip(bam_get_cigar(b), _cigar_array_len)) {
+        if (l_query <= 0 || is_hard_clip(_cigar_array_prt, _cigar_array_len)) {
             l_query = _cp.get_query_length_cigar();
         }
 
@@ -184,19 +215,27 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
             continue;
         }
 
-        int64_t NM_tag_value;
+        int32_t NM_tag_value;
         // check value get
         NM_tag_value = bam_aux2i(NM_tag);
 
         uint32_t aligned_len = _cp.get_aligned_len();
 
         // mapping identity
-        float percent_identity = 100*(1 - float(NM_tag_value) / float(aligned_len));
+        float percent_identity = -1;
+        if (identity_type == 0) {
+            percent_identity = gap_compressed_identity(NM_tag_value, _cigar_array_prt, _cigar_array_len);
+        } else if (identity_type == 1) {
+            percent_identity = 100*(1 - float(NM_tag_value)/float(aligned_len)); 
+        } else {
+
+        }
         if (percent_identity < 0 || percent_identity > 100) {
             std::cerr << "Error, percent of identity out of range for query "
                 << query_name << std::endl;
             continue;
         }
+
         identity_vec.push_back(percent_identity);
 
         int fragment_mean_qual = 0;
@@ -272,11 +311,12 @@ int bam_stats(const char *input_bam, const std::string prefix, bool get_qual)
 void usage() {
     std::cerr << "Long Reads mapping Fragments stats" << std::endl;
     std::cerr << "Options:" << std::endl;
-    std::cerr << "-h, --help                print this message and exit\n"
-        << "-b, --bam, FILE           input bam file [default: None]\n"
-        << "-p, --prefix, FILE        output file prefix [default: None]\n"
-        << "-q, --get_qual            get fragment sequencing quality [default FALSE]\n"
-        << "-V, --version             print version\n"
+    std::cerr << "-h, --help                   print this message and exit\n"
+        << "-b, --bam, FILE              input bam file [default: None]\n"
+        << "-p, --prefix, FILE           output file prefix [default: None]\n"
+        << "-t, --type_of_identity INT   type of identity, 0 for gap_compressed identity and 1 for blast identity [default: 0]\n"
+        << "-q, --get_qual               get fragment sequencing quality [default FALSE]\n"
+        << "-V, --version                print version"
         << std::endl;
 }
 
@@ -293,17 +333,19 @@ int main(int argc, char *argv[])
     static const struct option long_options[] = {
         {"bam", required_argument, 0, 'b'},
         {"out", required_argument, 0, 'o'},
+        {"type_of_identity", required_argument, 0, 't'},
         {"get_qual", no_argument, 0, 'q'},
         {"help", no_argument, 0, 'h'},
         {"version", no_argument, 0, 'V'}
     };
 
     int c = 100, long_idx;
-    const char *opt_str = "b:p:hqV";
+    const char *opt_str = "b:p:t:hqV";
 
     const char *_input_bam;
     const char *_prefix;
     bool _get_qual = 0; // default false
+    int identity_type = 0; // default gap compressed identity
 
     // int getopt_long (int argc, char *const *argv, const char *shortopts, const struct option *longopts, int *indexptr)
     while ((c = getopt_long(argc, argv, opt_str, long_options, &long_idx)) != -1) {
@@ -318,6 +360,8 @@ int main(int argc, char *argv[])
             return 0;
         } else if (c == 'q') {
             _get_qual = 1;
+        } else if (c == 't') {
+            identity_type = atoi(optarg);
         } else if (c == 'V') {
             std::cout << "bam_stats version: " << __version__ << std::endl;
             return 0;
@@ -327,8 +371,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    bam_stats(_input_bam, _prefix, _get_qual);
+    bam_stats(_input_bam, _prefix, identity_type, _get_qual);
 
     return 0;
 }
-
