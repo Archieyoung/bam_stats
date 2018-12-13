@@ -224,7 +224,7 @@ int bam_stats(const char *input_bam, const std::string prefix, int identity_type
         // mapping identity
         float percent_identity = -1;
         if (identity_type == 0) {
-            percent_identity = gap_compressed_identity(NM_tag_value, _cigar_array_prt, _cigar_array_len);
+            percent_identity = 100*gap_compressed_identity(NM_tag_value, _cigar_array_prt, _cigar_array_len);
         } else if (identity_type == 1) {
             percent_identity = 100*(1 - float(NM_tag_value)/float(aligned_len)); 
         } else {
