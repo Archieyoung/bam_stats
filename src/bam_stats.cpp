@@ -139,11 +139,11 @@ int bam_stats(const char *input_bam, const std::string prefix, int identity_type
 
     if (get_qual) {
         // output table header
-        out_hd << "#CHROM\tREF_START\tREF_END\tQUERY_NAME\tQUERY_POS1\tQUERY_POS2\t"
+        out_hd << "#CHROM\tREF_START\tREF_END\tQUERY_NAME\tQUERY_POS1\tQUERY_POS2\tQUERY_LEN\t"
 "MAPPING_QAULITY\tFRAGMENT_MEAN_Q\tFRAGMENT_IDENTITY" << std::endl;
     } else {
         // output table header
-        out_hd << "#CHROM\tREF_START\tREF_END\tQUERY_NAME\tQUERY_POS1\tQUERY_POS2\t"
+        out_hd << "#CHROM\tREF_START\tREF_END\tQUERY_NAME\tQUERY_POS1\tQUERY_POS2\tQUERY_LEN\t"
 "MAPPING_QAULITY\tFRAGMENT_IDENTITY" << std::endl;
     }
     
@@ -254,6 +254,8 @@ int bam_stats(const char *input_bam, const std::string prefix, int identity_type
             << "\t" 
             << query_end
             << "\t"
+            << l_query
+            << "\t"
             << mapping_qual
             << "\t"
             << fragment_mean_qual
@@ -272,6 +274,8 @@ int bam_stats(const char *input_bam, const std::string prefix, int identity_type
             << query_start
             << "\t" 
             << query_end
+            << "\t"
+            << l_query
             << "\t"
             << mapping_qual
             << "\t"
