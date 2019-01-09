@@ -349,7 +349,7 @@ int main(int argc, char *argv[])
     };
 
     int c = 100, long_idx;
-    const char *opt_str = "b:p:t:hqV";
+    const char *opt_str = "b:p:t:m:hqV";
 
     const char *_input_bam;
     const char *_prefix;
