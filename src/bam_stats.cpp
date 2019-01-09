@@ -125,7 +125,8 @@ float gap_compressed_identity(const int32_t &nm, const uint32_t *ca_prt,
     return _identity;
 }
 
-int bam_stats(const char *input_bam, const std::string prefix, int identity_type, bool get_qual)
+int bam_stats(const char *input_bam, const std::string prefix,
+    int identity_type, uint8_t min_mq, bool get_qual)
 {
     // open bam
     samFile *fp = sam_open(input_bam, "r");
@@ -162,6 +163,9 @@ int bam_stats(const char *input_bam, const std::string prefix, int identity_type
     int ret;
     // read record one by one
     while ((ret = sam_read1(fp, h, b) >= 0)) {
+        if (b->core.qual < min_mq) {
+            continue;
+        } 
         const uint16_t bam_flag = b->core.flag;
         const uint32_t *_cigar_array_prt = bam_get_cigar(b);
         const uint32_t _cigar_array_len = b->core.n_cigar;
@@ -319,6 +323,7 @@ void usage() {
         << "-b, --bam, FILE              input bam file [default: None]\n"
         << "-p, --prefix, FILE           output file prefix [default: None]\n"
         << "-t, --type_of_identity INT   type of identity, 0 for gap_compressed identity and 1 for blast identity [default: 0]\n"
+        << "-m, --min_mq                 minimum mapping quality [default: 0]\n"
         << "-q, --get_qual               get fragment sequencing quality [default FALSE]\n"
         << "-V, --version                print version"
         << std::endl;
@@ -350,6 +355,7 @@ int main(int argc, char *argv[])
     const char *_prefix;
     bool _get_qual = 0; // default false
     int identity_type = 0; // default gap compressed identity
+    uint8_t min_mq = 0;
 
     // int getopt_long (int argc, char *const *argv, const char *shortopts, const struct option *longopts, int *indexptr)
     while ((c = getopt_long(argc, argv, opt_str, long_options, &long_idx)) != -1) {
@@ -366,16 +372,19 @@ int main(int argc, char *argv[])
             _get_qual = 1;
         } else if (c == 't') {
             identity_type = atoi(optarg);
+        } else if (c == 'm') {
+            min_mq = atoi(optarg);
         } else if (c == 'V') {
             std::cout << "bam_stats version: " << __version__ << std::endl;
             return 0;
         }
         else {
             std::cerr << "Invalid Arguments.";
+            std::exit(1);
         }
     }
 
-    bam_stats(_input_bam, _prefix, identity_type, _get_qual);
+    bam_stats(_input_bam, _prefix, identity_type, min_mq, _get_qual);
 
     return 0;
 }
