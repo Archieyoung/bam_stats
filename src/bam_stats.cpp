@@ -162,10 +162,7 @@ int bam_stats(const char *input_bam, const std::string prefix,
     std::vector<float> identity_vec;
     int ret;
     // read record one by one
-    while ((ret = sam_read1(fp, h, b) >= 0)) {
-        if (b->core.qual < min_mq) {
-            continue;
-        } 
+    while ((ret = sam_read1(fp, h, b) >= 0)) { 
         const uint16_t bam_flag = b->core.flag;
         const uint32_t *_cigar_array_prt = bam_get_cigar(b);
         const uint32_t _cigar_array_len = b->core.n_cigar;
@@ -197,6 +194,11 @@ int bam_stats(const char *input_bam, const std::string prefix,
         if (is_unmapped(bam_flag)) {
             // std::cout << "Unmapped." << std::endl;
             ++unmapped_num;
+            continue;
+        }
+
+        // skip segment with mapping qual less than min_mq
+        if (b->core.qual < min_mq) {
             continue;
         }
 
