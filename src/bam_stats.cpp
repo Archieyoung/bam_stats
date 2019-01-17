@@ -85,7 +85,10 @@ int get_fragment_qual(bam1_t *b, int32_t &l_query,
     
 }
 
-bool is_hard_clip(const uint32_t *cigar_array_prt, const uint32_t cigar_array_len) {
+bool is_hard_clip(const uint32_t *cigar_array_prt, const uint32_t cigar_array_len, const uint16_t bam_flag) {
+    if (is_unmapped(bam_flag)) {
+        return false;
+    }
     const int c_op_s = bam_cigar_op(*cigar_array_prt);
     const int c_op_e = bam_cigar_op(*(cigar_array_prt + cigar_array_len - 1));
     if (c_op_s == BAM_CHARD_CLIP || c_op_e == BAM_CHARD_CLIP) {
@@ -175,12 +178,14 @@ int bam_stats(const char *input_bam, const std::string prefix,
         const char *query_name = bam_get_qname(b);
         int32_t l_query = b->core.l_qseq;
         
+        
         // std::cout << _cigar_array_len << std::endl;
         // from_cigar constructor
         from_cigar _cp(_cigar_array_prt, _cigar_array_len);        
 
+
         /*query len from CIGAR*/
-        if (l_query <= 0 || is_hard_clip(_cigar_array_prt, _cigar_array_len)) {
+        if (l_query <= 0 || is_hard_clip(_cigar_array_prt, _cigar_array_len, bam_flag)) {
             l_query = _cp.get_query_length_cigar();
         }
 
@@ -188,17 +193,15 @@ int bam_stats(const char *input_bam, const std::string prefix,
             qlen[query_name] = l_query;
             total_bases += l_query;
         }
-        // std::cerr << query_name << ": " << l_query << std::endl;
-        
-        // skip unmapped record
-        if (is_unmapped(bam_flag)) {
-            // std::cout << "Unmapped." << std::endl;
-            ++unmapped_num;
-            continue;
-        }
 
         // skip segment with mapping qual less than min_mq
         if (b->core.qual < min_mq) {
+            continue;
+        }
+        
+        // skip unmapped record
+        if (is_unmapped(bam_flag)) {
+            ++unmapped_num;
             continue;
         }
 
