@@ -127,8 +127,8 @@ int32_t nm_from_cigar(const uint32_t *ca_prt, const uint32_t &ca_len)
         }
     }
     if (ne == 0) {
-        std::cerr << "[nm_from_cigar] Warning! Can not calculate NM " <<
-            "because no '=' find in CIGAR." << std::endl;
+        // std::cerr << "[nm_from_cigar] Warning! Can not calculate NM " <<
+        //     "because no '=' find in CIGAR." << std::endl;
         return -1;
     }
     return nm;
@@ -201,6 +201,7 @@ int bam_stats(const char *input_bam, const std::string prefix,
     // mapped bases
     uint64_t mapped_bases = 0;
 
+    int warn_nm1 = 0;
     // identity vector
     std::vector<float> identity_vec;
     int ret;
@@ -253,7 +254,6 @@ int bam_stats(const char *input_bam, const std::string prefix,
             mapped_bases += qspan;
         }
 
-        int warn_nm1 = 0;
         int32_t NM;
         // "NM" tag
         uint8_t *NM_tag;
