@@ -172,7 +172,7 @@ float gap_compressed_identity(const int32_t &nm, const uint32_t *ca_prt,
     for (uint32_t i = 0; i < ca_len; ++i) {
         const int c_op = bam_cigar_op(*(ca_prt+i));
         const int c_oplen = bam_cigar_oplen(*(ca_prt+i));
-        if (c_op == BAM_CMATCH) {
+        if (c_op == BAM_CMATCH || c_op == BAM_CEQUAL) {
             l_m += c_oplen;
         } else if (c_op == BAM_CDEL) {
             l_d += c_oplen;
