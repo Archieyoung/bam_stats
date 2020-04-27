@@ -176,7 +176,7 @@ int bam_stats(const char *input_bam, const std::string prefix,
     b = bam_init1();
 
     gzFile out_gz;
-    out_gz = gzopen((prefix+".mapping.fragment.stats.txt").c_str(), "wb");
+    out_gz = gzopen((prefix+".fragment.txt.gz").c_str(), "wb");
     char out_str[2048];
     int out_str_len;
     if (get_qual) {
