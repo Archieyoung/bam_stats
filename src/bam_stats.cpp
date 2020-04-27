@@ -279,7 +279,6 @@ int bam_stats(const char *input_bam, const std::string prefix,
             if (identity_type == 0) {
                 percent_identity = 100*gap_compressed_identity(NM, _cigar_array_prt, _cigar_array_len);
             } else if (identity_type == 1) {
-                std::cout << NM << std::endl;
                 percent_identity = 100*(1 - float(NM)/float(aligned_len)); 
             }
         }
