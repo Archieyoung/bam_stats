@@ -135,6 +135,27 @@ int32_t nm_from_cigar(const uint32_t *ca_prt, const uint32_t &ca_len)
 }
 
 
+int32_t mapped_bases_from_cigar(const uint32_t *ca_prt, const uint32_t &ca_len)
+{
+    int mapped_bases = 0;
+    uint32_t cigar_op = 0;
+    uint32_t cigar_oplen = 0;
+    for (uint32_t i = 0; i < ca_len; ++i) {
+        cigar_op = bam_cigar_op(ca_prt[i]);
+        cigar_oplen = bam_cigar_oplen(ca_prt[i]);
+        switch (cigar_op)
+        {
+        case BAM_CEQUAL:
+        case BAM_CMATCH:
+            mapped_bases += cigar_oplen;
+        default:
+            break;
+        }
+    }
+    return mapped_bases;
+}
+
+
 /*
 compute gap compressed identity. https://lh3.github.io/2018/11/25/on-the-definition-of-sequence-identity
 perl -ane 'if(/NM:i:(\d+)/){$n=$1;$l=0;$l+=$1 while/(\d+)[MID]/g;print(($l-$n)/$l,"\n")}'
@@ -191,8 +212,8 @@ int bam_stats(const char *input_bam, const std::string prefix,
 
     gzwrite(out_gz, out_str, out_str_len);
     
-    // key qnames, value query length
-    std::map<std::string, uint32_t> qlen;
+    // total reads
+    uint64_t total_num = 0;
     // unmapped reads number
     uint64_t unmapped_num = 0;
 
@@ -230,8 +251,11 @@ int bam_stats(const char *input_bam, const std::string prefix,
             l_query = _cp.get_query_length_cigar();
         }
 
-        if (qlen.find(query_name) == qlen.end()) {
-            qlen[query_name] = l_query;
+        // total bases
+        if ( (bam_flag & BAM_FSECONDARY) == 0 &&
+            (bam_flag & BAM_FSUPPLEMENTARY) == 0)
+        {
+            ++total_num;
             total_bases += l_query;
         }
 
@@ -248,10 +272,10 @@ int bam_stats(const char *input_bam, const std::string prefix,
 
         const uint32_t query_start = _cp.get_query_start(bam_flag, l_query);
         const uint32_t query_end = _cp.get_query_end(bam_flag, l_query);
-        // mapped bases is the span of the segment, cliping not included
-        uint32_t qspan = abs(query_end - query_start) + 1;
+
         if (!(bam_flag&BAM_FSECONDARY)) {
-            mapped_bases += qspan;
+            mapped_bases += mapped_bases_from_cigar(
+                bam_get_cigar(b), b->core.n_cigar);
         }
 
         int32_t NM;
@@ -313,11 +337,10 @@ int bam_stats(const char *input_bam, const std::string prefix,
 "Mapped_Reads_Rate\tTotal_Bases\tMapped_Bases\tMapped_Bases_Rate\t"
 "Mean_Percent_of_Identity" << std::endl;
 
-    uint64_t total_reads_num = qlen.size();
-    uint64_t mapped_reads_num = total_reads_num - unmapped_num;
-    out_hd1 << total_reads_num << "\t"
+    uint64_t mapped_reads_num = total_num - unmapped_num;
+    out_hd1 << total_num << "\t"
             << mapped_reads_num << "\t"
-            << float(mapped_reads_num)/total_reads_num << "\t"
+            << float(mapped_reads_num)/total_num << "\t"
             << total_bases << "\t"
             << mapped_bases << "\t"
             << float(mapped_bases)/total_bases << "\t"
