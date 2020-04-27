@@ -19,18 +19,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # set static library
 # set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 
-add_library(bam_stats_objects
-    OBJECT
-    src/from_cigar.cpp)
-
-# CMAKE_CURRENT_SOURCE_DIR: This the full path to the source directory that is currently being processed by cmake.
-target_include_directories(bam_stats_objects PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/vendor/htslib>
-    $<INSTALL_INTERFACE:include>)
-
-# not install
-# install(TARGETS bam_stats_objects DESTINATION ${CMAKE_INSTALL_LIBDIR})
-
 # htslib library and include files in vendor
 set(HTS_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/htslib/htslib)
 set(HTS_LIB ${CMAKE_CURRENT_SOURCE_DIR}/vendor/htslib/libhts.a)
@@ -49,11 +37,13 @@ else (EXISTS ${HTS_LIB})
 endif (EXISTS ${HTS_LIB})
 
 add_executable(bam_stats
-    src/bam_stats.cpp)
+    src/bam_stats.cpp
+    src/from_cigar.cpp)
 
 target_include_directories(bam_stats PUBLIC 
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/vendor/htslib ${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/vendor/htslib>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(bam_stats bam_stats_objects ${CMAKE_CURRENT_SOURCE_DIR}/vendor/htslib/libhts.a z m bz2 lzma pthread)
+target_link_libraries(bam_stats ${CMAKE_CURRENT_SOURCE_DIR}/vendor/htslib/libhts.a z m bz2 lzma pthread)
 

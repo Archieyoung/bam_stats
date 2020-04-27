@@ -2,13 +2,15 @@
 #include <algorithm> 
 #include <numeric>
 #include <fstream>
+#include <sstream>
 #include <cstdlib>
 #include <cmath>
 #include <vector>
 #include <map>
+#include <cstdio>
 #include <getopt.h>
 
-
+#include "zlib.h"
 #include "bam_stats.h"
 
 inline bool is_unmapped(const uint16_t &_flag) {
@@ -98,6 +100,41 @@ bool is_hard_clip(const uint32_t *cigar_array_prt, const uint32_t cigar_array_le
     }
 }
 
+
+/**
+ * @brief Calculate NM from CIGAR when use BAM_CEQUAL('=') in CIGAR
+ */
+int32_t nm_from_cigar(const uint32_t *ca_prt, const uint32_t &ca_len)
+{
+    int32_t nm = 0;
+    int32_t ne = 0;  // number of '='
+    uint32_t cigar_op = 0;
+    uint32_t cigar_oplen = 0;
+    for (uint32_t i = 0; i < ca_len; ++i) {
+        cigar_op = bam_cigar_op(ca_prt[i]);
+        cigar_oplen = bam_cigar_oplen(ca_prt[i]);
+        switch (cigar_op)
+        {
+        case BAM_CDIFF:
+        case BAM_CDEL:
+        case BAM_CINS:
+            nm += cigar_oplen;
+            break;
+        case BAM_CEQUAL:
+            ne += cigar_oplen;
+        default:
+            break;
+        }
+    }
+    if (ne == 0) {
+        std::cerr << "[nm_from_cigar] Warning! Can not calculate NM " <<
+            "because no '=' find in CIGAR." << std::endl;
+        return -1;
+    }
+    return nm;
+}
+
+
 /*
 compute gap compressed identity. https://lh3.github.io/2018/11/25/on-the-definition-of-sequence-identity
 perl -ane 'if(/NM:i:(\d+)/){$n=$1;$l=0;$l+=$1 while/(\d+)[MID]/g;print(($l-$n)/$l,"\n")}'
@@ -138,18 +175,21 @@ int bam_stats(const char *input_bam, const std::string prefix,
 
     b = bam_init1();
 
-    std::ofstream out_hd;
-    out_hd.open(prefix+".mapping.fragment.stats.txt");
-
+    gzFile out_gz;
+    out_gz = gzopen((prefix+".mapping.fragment.stats.txt").c_str(), "wb");
+    char out_str[2048];
+    int out_str_len;
     if (get_qual) {
         // output table header
-        out_hd << "#CHROM\tREF_START\tREF_END\tQUERY_NAME\tQUERY_POS1\tQUERY_POS2\tQUERY_LEN\t"
-"MAPPING_QAULITY\tFRAGMENT_MEAN_Q\tFRAGMENT_IDENTITY" << std::endl;
+        out_str_len = sprintf(out_str, "#CHROM\tREF_START\tREF_END\tQUERY_NAME\tQUERY_POS1\tQUERY_POS2\tQUERY_LEN\t"
+"MAPPING_QAULITY\tFRAGMENT_MEAN_Q\tFRAGMENT_IDENTITY\n");
     } else {
         // output table header
-        out_hd << "#CHROM\tREF_START\tREF_END\tQUERY_NAME\tQUERY_POS1\tQUERY_POS2\tQUERY_LEN\t"
-"MAPPING_QAULITY\tFRAGMENT_IDENTITY" << std::endl;
+        out_str_len = sprintf(out_str, "#CHROM\tREF_START\tREF_END\tQUERY_NAME\tQUERY_POS1\tQUERY_POS2\tQUERY_LEN\t"
+"MAPPING_QAULITY\tFRAGMENT_IDENTITY\n");
     }
+
+    gzwrite(out_gz, out_str, out_str_len);
     
     // key qnames, value query length
     std::map<std::string, uint32_t> qlen;
@@ -213,36 +253,34 @@ int bam_stats(const char *input_bam, const std::string prefix,
             mapped_bases += qspan;
         }
 
-    
+        int warn_nm1 = 0;
+        int32_t NM;
         // "NM" tag
         uint8_t *NM_tag;
         // check tag existence
         if (bam_aux_get(b, "NM") != nullptr) {
-            NM_tag = bam_aux_get(b, "NM");     
+            NM_tag = bam_aux_get(b, "NM");  
+            NM = bam_aux2i(NM_tag);   
         } else {
-            std::cerr << "Can't find \"NM\" tag" << std::endl;
-            continue;
+            if (!warn_nm1) {
+                std::cerr << "Warning Can't find \"NM\" tag, " <<
+                    "getting NM from CIGAR" << std::endl;
+                warn_nm1 = 1;
+            }
+            NM = nm_from_cigar(_cigar_array_prt, _cigar_array_len);
         }
-
-        int32_t NM_tag_value;
-        // check value get
-        NM_tag_value = bam_aux2i(NM_tag);
 
         uint32_t aligned_len = _cp.get_aligned_len();
 
         // mapping identity
         float percent_identity = -1;
-        if (identity_type == 0) {
-            percent_identity = 100*gap_compressed_identity(NM_tag_value, _cigar_array_prt, _cigar_array_len);
-        } else if (identity_type == 1) {
-            percent_identity = 100*(1 - float(NM_tag_value)/float(aligned_len)); 
-        } else {
 
-        }
-        if (percent_identity < 0 || percent_identity > 100) {
-            std::cerr << "Error, percent of identity out of range for query "
-                << query_name << std::endl;
-            continue;
+        if (NM >= 0) {
+            if (identity_type == 0) {
+                percent_identity = 100*gap_compressed_identity(NM, _cigar_array_prt, _cigar_array_len);
+            } else if (identity_type == 1) {
+                percent_identity = 100*(1 - float(NM)/float(aligned_len)); 
+            }
         }
 
         identity_vec.push_back(percent_identity);
@@ -251,49 +289,21 @@ int bam_stats(const char *input_bam, const std::string prefix,
 
         if (get_qual) {
             fragment_mean_qual = get_fragment_qual(b, l_query, query_start, query_end);
-            out_hd << ref_name
-            << "\t"
-            << _cp.get_ref_start(pos)
-            << "\t"
-            << _cp.get_ref_end(pos)
-            << "\t"
-            << query_name
-            << "\t"
-            << query_start
-            << "\t" 
-            << query_end
-            << "\t"
-            << l_query
-            << "\t"
-            << mapping_qual
-            << "\t"
-            << fragment_mean_qual
-            << "\t"
-            << percent_identity
-            << std::endl;
+            out_str_len = sprintf(out_str, "%s\t%u\t%u\t%s\t%u\t%u\t%d\t%u\t%d\t%0.6f\n",
+                ref_name, _cp.get_ref_start(pos), _cp.get_ref_end(pos),
+                query_name, query_start, query_end, l_query, (uint32_t)mapping_qual,
+                fragment_mean_qual, percent_identity);
+            gzwrite(out_gz, out_str, out_str_len);
         } else {
-            out_hd << ref_name
-            << "\t"
-            << _cp.get_ref_start(pos)
-            << "\t"
-            << _cp.get_ref_end(pos)
-            << "\t"
-            << query_name
-            << "\t"
-            << query_start
-            << "\t" 
-            << query_end
-            << "\t"
-            << l_query
-            << "\t"
-            << mapping_qual
-            << "\t"
-            << percent_identity
-            << std::endl;
+            out_str_len = sprintf(out_str, "%s\t%u\t%u\t%s\t%u\t%u\t%d\t%u\t%0.6f\n",
+                ref_name, _cp.get_ref_start(pos), _cp.get_ref_end(pos),
+                query_name, query_start, query_end, l_query, (uint32_t)mapping_qual,
+                percent_identity);
+            gzwrite(out_gz, out_str, out_str_len);
         }
     }
 
-    out_hd.close();
+    gzclose(out_gz);
 
     std::ofstream out_hd1;
 
