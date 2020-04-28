@@ -274,8 +274,7 @@ int bam_stats(const char *input_bam, const std::string prefix,
         const uint32_t query_end = _cp.get_query_end(bam_flag, l_query);
 
         if (!(bam_flag&BAM_FSECONDARY)) {
-            mapped_bases += mapped_bases_from_cigar(
-                bam_get_cigar(b), b->core.n_cigar);
+            mapped_bases += std::abs((int)query_end - (int)query_start) + 1;
         }
 
         int32_t NM;
