@@ -55,13 +55,6 @@ inline float mean_identity(std::vector<float> &identity_vec) {
     return sum/identity_vec.size();
 }
 
-// uint64_t total_reads(std::vector<std::string> &qnames) {
-//     std::sort(qnames.begin(), qnames.end()); // sort inplace
-//     auto end_uniq = std::unique(qnames.begin(), qnames.end());
-//     qnames.erase(end_uniq, qnames.end());
-//     return qnames.size();
-// }
-
 int get_fragment_qual(bam1_t *b, int32_t &l_query,
     const uint32_t &query_start, const uint32_t &query_end) {
     /*get mapping fragment quality string, and then calculate mean sequencing
@@ -346,19 +339,20 @@ int bam_stats(const char *input_bam, const std::string prefix,
             << mean_identity(identity_vec) << "\t"
             << std::endl;
    
+    out_hd1.close();
     bam_destroy1(b);
     bam_hdr_destroy(h);
     sam_close(fp);
     return 0;
-} // need simplify
+}
 
 
 void usage() {
-    std::cerr << "Long Reads mapping Fragments stats" << std::endl;
+    std::cerr << "A long reads mapping fragments stats tool." << std::endl;
     std::cerr << "Options:" << std::endl;
     std::cerr << "-h, --help                   print this message and exit\n"
         << "-b, --bam, FILE              input bam file [default: None]\n"
-        << "-p, --prefix, FILE           output file prefix [default: None]\n"
+        << "-p, --prefix, STR            output file prefix [default: None]\n"
         << "-t, --type_of_identity INT   type of identity, 0 for gap_compressed identity and 1 for blast identity [default: 0]\n"
         << "-m, --min_mq                 minimum mapping quality [default: 0]\n"
         << "-q, --get_qual               get fragment sequencing quality [default FALSE]\n"
@@ -373,7 +367,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    std::string __version__ = "v0.0.1";
+    std::string __version__ = "v0.1.0";
 
     // long_option array
     static const struct option long_options[] = {
@@ -396,8 +390,6 @@ int main(int argc, char *argv[])
 
     // int getopt_long (int argc, char *const *argv, const char *shortopts, const struct option *longopts, int *indexptr)
     while ((c = getopt_long(argc, argv, opt_str, long_options, &long_idx)) != -1) {
-        // cout << "test" << endl;
-        // cout << c << endl;
         if (c == 'b') {
             _input_bam = optarg;
         } else if (c == 'p') {
