@@ -1,6 +1,7 @@
 # BAM STATS
 
-Statistics for bam file. Including mapping quality, aligned lenght, splited reads number, splited read fragments number, splited reads fragment lenght and so on.
+Statistics for bam file. Including mapping summary(mapping ratio, identity) and
+mapped reads fragment information(position on reference, position on query, strand, mapping quality, mapping identity)
 
 ## Dependency
 
