@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 # project and version
-project(bam_stats LANGUAGES CXX VERSION 0.0.1)
+project(bam_stats LANGUAGES CXX VERSION 0.1.0)
 
 # Standard GNU install dirs
 # include(GNUInstallDirs)
