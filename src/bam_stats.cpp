@@ -336,7 +336,7 @@ int bam_stats(const char *input_bam, const std::string prefix,
             << total_bases << "\t"
             << mapped_bases << "\t"
             << float(mapped_bases)/total_bases << "\t"
-            << mean_identity(identity_vec) << "\t"
+            << mean_identity(identity_vec)
             << std::endl;
    
     out_hd1.close();
