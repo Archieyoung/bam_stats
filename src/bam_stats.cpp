@@ -140,6 +140,7 @@ int32_t mapped_bases_from_cigar(const uint32_t *ca_prt, const uint32_t &ca_len)
         {
         case BAM_CEQUAL:
         case BAM_CMATCH:
+        case BAM_CDIFF:
             mapped_bases += cigar_oplen;
         default:
             break;
@@ -165,7 +166,8 @@ float gap_compressed_identity(const int32_t &nm, const uint32_t *ca_prt,
     for (uint32_t i = 0; i < ca_len; ++i) {
         const int c_op = bam_cigar_op(*(ca_prt+i));
         const int c_oplen = bam_cigar_oplen(*(ca_prt+i));
-        if (c_op == BAM_CMATCH || c_op == BAM_CEQUAL) {
+        if (c_op == BAM_CMATCH || c_op == BAM_CEQUAL || c_op == BAM_CDIFF)
+        {
             l_m += c_oplen;
         } else if (c_op == BAM_CDEL) {
             l_d += c_oplen;
