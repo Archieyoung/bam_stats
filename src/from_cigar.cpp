@@ -100,7 +100,7 @@ uint32_t from_cigar::get_aligned_len() {
         const int c_op = bam_cigar_op(*(ca_prt+i));
         const int c_oplen = bam_cigar_oplen(*(ca_prt+i));
         if (c_op == BAM_CMATCH || c_op == BAM_CEQUAL || c_op == BAM_CDEL
-            || c_op == BAM_CINS)
+            || c_op == BAM_CINS || c_op == BAM_CDIFF)
         {
             aligned_len += c_oplen;
         }
