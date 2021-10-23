@@ -45,5 +45,5 @@ target_include_directories(bam_stats PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(bam_stats ${CMAKE_CURRENT_SOURCE_DIR}/vendor/htslib/libhts.a z m bz2 lzma pthread)
+target_link_libraries(bam_stats ${CMAKE_CURRENT_SOURCE_DIR}/vendor/htslib/libhts.a z m bz2 lzma pthread curl)
 
