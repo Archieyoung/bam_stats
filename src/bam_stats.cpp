@@ -374,7 +374,7 @@ int main(int argc, char *argv[])
     // long_option array
     static const struct option long_options[] = {
         {"bam", required_argument, 0, 'b'},
-        {"out", required_argument, 0, 'o'},
+        {"prefix", required_argument, 0, 'p'},
         {"type_of_identity", required_argument, 0, 't'},
         {"get_qual", no_argument, 0, 'q'},
         {"help", no_argument, 0, 'h'},
